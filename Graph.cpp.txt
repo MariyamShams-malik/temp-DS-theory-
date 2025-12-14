@@ -1,0 +1,150 @@
+/*addEdge now fills the reverse map. Added getReachableNodes (BFS) and getControllers (Reverse BFS).*/
+#include "Graph.h"
+#include <queue>
+#include <algorithm>
+#include <unordered_set>
+#include <iostream>
+
+void Graph::addNode(const std::string& id, const std::string& type, const std::string& name) {
+    nodes[id] = {id, type, name};
+}
+
+void Graph::addEdge(const std::string& sourceId, const std::string& targetId, const std::string& type) {
+    // 1. Normal direction for attacks (Source -> Target)
+    adjacencyList[sourceId].push_back({sourceId, targetId, type});
+    
+    // 2. Reverse direction for "Who controls this?" analysis (Target -> Source)
+    // [Member 3 Work] This is required for getControllers()
+    reverseAdjacencyList[targetId].push_back({sourceId, targetId, type});
+}
+
+std::string Graph::findNodeIdByName(const std::string& name) {
+    for (const auto& pair : nodes) {
+        if (pair.second.name == name) {
+            return pair.first;
+        }
+    }
+    return "";
+}
+
+// [Member 3] Reachability: BFS moving forward
+// Answers: "Who can User X access?"
+std::vector<std::string> Graph::getReachableNodes(const std::string& sourceName) {
+    std::string startId = findNodeIdByName(sourceName);
+    if (startId.empty()) return {};
+
+    std::vector<std::string> results;
+    std::queue<std::string> q;
+    std::unordered_set<std::string> visited;
+
+    q.push(startId);
+    visited.insert(startId);
+
+    while (!q.empty()) {
+        std::string currentId = q.front();
+        q.pop();
+
+        if (currentId != startId) {
+            results.push_back(nodes[currentId].name + " [" + nodes[currentId].type + "]");
+        }
+
+        if (adjacencyList.find(currentId) != adjacencyList.end()) {
+            for (const auto& edge : adjacencyList[currentId]) {
+                if (visited.find(edge.targetId) == visited.end()) {
+                    visited.insert(edge.targetId);
+                    q.push(edge.targetId);
+                }
+            }
+        }
+    }
+    return results;
+}
+
+// [Member 3] Controllers: BFS moving backward (Reverse Traversal)
+// Answers: "Who can control Computer Y?"
+std::vector<std::string> Graph::getControllers(const std::string& targetName) {
+    std::string startId = findNodeIdByName(targetName);
+    if (startId.empty()) return {};
+
+    std::vector<std::string> results;
+    std::queue<std::string> q;
+    std::unordered_set<std::string> visited;
+
+    q.push(startId);
+    visited.insert(startId);
+
+    while (!q.empty()) {
+        std::string currentId = q.front();
+        q.pop();
+
+        if (currentId != startId) {
+            results.push_back(nodes[currentId].name + " [" + nodes[currentId].type + "]");
+        }
+
+        // Use the REVERSE list to walk back up the chain
+        if (reverseAdjacencyList.find(currentId) != reverseAdjacencyList.end()) {
+            for (const auto& edge : reverseAdjacencyList[currentId]) {
+                // In reverse list, sourceId is the actor pointing AT us
+                if (visited.find(edge.sourceId) == visited.end()) {
+                    visited.insert(edge.sourceId);
+                    q.push(edge.sourceId);
+                }
+            }
+        }
+    }
+    return results;
+}
+
+std::vector<std::string> Graph::shortestPath(const std::string& sourceName, const std::string& targetName) {
+    std::string startId = findNodeIdByName(sourceName);
+    std::string endId = findNodeIdByName(targetName);
+
+    if (startId.empty() || endId.empty()) return {};
+
+    std::queue<std::string> q;
+    q.push(startId);
+
+    std::unordered_map<std::string, std::string> parent;
+    std::unordered_map<std::string, std::string> edgeType;
+    std::unordered_set<std::string> visited;
+
+    visited.insert(startId);
+    bool found = false;
+
+    while (!q.empty()) {
+        std::string currentId = q.front();
+        q.pop();
+
+        if (currentId == endId) {
+            found = true;
+            break;
+        }
+
+        if (adjacencyList.find(currentId) != adjacencyList.end()) {
+            for (const auto& edge : adjacencyList[currentId]) {
+                if (visited.find(edge.targetId) == visited.end()) {
+                    visited.insert(edge.targetId);
+                    parent[edge.targetId] = currentId;
+                    edgeType[edge.targetId] = edge.type;
+                    q.push(edge.targetId);
+                }
+            }
+        }
+    }
+
+    if (found) {
+        std::vector<std::string> path;
+        std::string curr = endId;
+        while (curr != startId) {
+            std::string p = parent[curr];
+            std::string type = edgeType[curr];
+            path.push_back("(" + type + ") -> " + nodes[curr].name + " [" + nodes[curr].type + "]");
+            curr = p;
+        }
+        path.push_back(nodes[startId].name + " [" + nodes[startId].type + "]");
+        std::reverse(path.begin(), path.end());
+        return path;
+    }
+
+    return {};
+}

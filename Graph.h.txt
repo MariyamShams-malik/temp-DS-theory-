@@ -1,0 +1,47 @@
+/*I have added the prototypes for getReachableNodes and getControllers, as well as a reverseAdjacencyList to support the reverse traversal logic*/
+#pragma once
+
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <iostream>
+
+struct Node {
+    std::string id;
+    std::string type;
+    std::string name;
+};
+
+struct Edge {
+    std::string sourceId;
+    std::string targetId;
+    std::string type;
+};
+
+class Graph {
+public:
+    void addNode(const std::string& id, const std::string& type, const std::string& name);
+    void addEdge(const std::string& sourceId, const std::string& targetId, const std::string& type);
+    
+    // Existing Pathfinding
+    std::vector<std::string> shortestPath(const std::string& sourceName, const std::string& targetName);
+
+    // [Member 3] Reachability: Who can this user access?
+    std::vector<std::string> getReachableNodes(const std::string& sourceName);
+
+    // [Member 3] Controller Analysis: Who can control this computer?
+    std::vector<std::string> getControllers(const std::string& targetName);
+
+    const std::unordered_map<std::string, Node>& getNodes() const { return nodes; }
+
+private:
+    std::unordered_map<std::string, Node> nodes;
+    
+    // Forward edges (Source -> Target)
+    std::unordered_map<std::string, std::vector<Edge>> adjacencyList;
+
+    // [Member 3] Reverse edges (Target -> Source) for Controller Analysis
+    std::unordered_map<std::string, std::vector<Edge>> reverseAdjacencyList;
+    
+    std::string findNodeIdByName(const std::string& name);
+};
